@@ -1,0 +1,258 @@
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Plus,
+  Trash2,
+  Download,
+  FileText,
+  Calendar,
+  User,
+  MapPin,
+  Hash,
+  DollarSign,
+  Package,
+  Save,
+  CheckCircle,
+  AlertCircle,
+  Percent,
+  Image,
+  RefreshCw,
+  Building2,
+  CreditCard,
+  Edit3,
+  Eye,
+  EyeOff,
+  Settings,
+  X,
+  Banknote,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import Swal from "sweetalert2";
+
+const BillManagementApp = () => {
+  // Configuration for API base URL
+  const API_BASE_URL = "https://billing-software-backendd.onrender.com";
+
+  // State management
+  const [bills, setBills] = useState([]);
+  const [bankDetails, setBankDetails] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [showBankForm, setShowBankForm] = useState(false);
+  const [showBankManagement, setShowBankManagement] = useState(false);
+  const [editingBank, setEditingBank] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastCreatedBill, setLastCreatedBill] = useState(null);
+  const [isConnected, setIsConnected] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+
+  // Pagination and filtering states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("date-desc");
+  const [filterCurrency, setFilterCurrency] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(8);
+
+  // Initial form data state
+  const [formData, setFormData] = useState({
+    poNo: "",
+    date: new Date().toISOString().split("T")[0],
+    customerName: "",
+    customerAddress: "",
+    customerGSTIN: "",
+    deliveryAddress: "",
+    items: [
+      {
+        description: "",
+        hsn: "",
+        quantity: "",
+        unit: "pcs",
+        unitPrice: "",
+      },
+    ],
+    taxPercent: 0,
+    paymentTerms: "50% Advance",
+    deliveryTerms: "1 Week",
+    modeOfDispatch: "",
+    billingInstructions: "",
+    remarks: "",
+    emails: ["sales@ingredientz.co", "procurement@ingredientz.co"],
+    website: "www.ingredientz.co",
+    currency: "INR",
+    termsAndConditions: [
+      "Supply shall commence only after pre-shipment samples are approved in writing by Proingredientz. If samples fail, all advances must be refunded immediately in full.",
+      "Supplier guarantees that goods conform to agreed specifications, COA (Certificate of Analysis), and applicable Indian/International quality standards. Any deviation or misrepresentation will be treated as breach of contract.",
+      "Proingredientz reserves the right to reject goods not meeting quality, specifications, or agreed delivery timelines. All costs of return/replacement shall be borne by the supplier.",
+      "Each consignment must be accompanied by Invoice, Packing List, COA, and relevant regulatory documents. Non-compliance can result in rejection.",
+      "All disputes subject to Mumbai, Maharashtra jurisdiction.",
+      "Supplier shall not disclose Proingredientz's order details, product specifications, or client information to third parties without written approval.",
+    ],
+    bankId: "",
+    image: null,
+  });
+
+  const [bankFormData, setBankFormData] = useState({
+    bankName: "",
+    accountName: "",
+    accountNumber: "",
+    ifscCode: "",
+    swiftCode: "",
+    branchName: "",
+    branchAddress: "",
+    isActive: true,
+  });
+
+  // Unit options and conversion factors
+  const unitOptions = ["kg", "mt", "lbs", "tons", "grams"];
+  
+  const unitToKgConversion = {
+    kg: 1,
+    mt: 1000,
+    lbs: 0.453592,
+    tons: 1000,
+    grams: 0.001,
+  };
+
+  const currencyOptions = [
+    "INR",
+    "USD",
+    "EUR",
+    "GBP",
+    "JPY",
+    "AUD",
+    "CAD",
+    "CHF",
+    "CNY",
+    "SEK",
+    "NZD",
+    "MXN",
+    "SGD",
+    "HKD",
+    "NOK",
+    "BRL",
+    "ZAR",
+    "RUB",
+  ];
+
+  // Function implementations...
+  // (Your existing functions remain unchanged)
+
+  // Main render logic
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Connection Status */}
+        {isConnected !== null && (
+          <div
+            className={`mb-4 px-4 py-2 rounded-lg flex items-center gap-2 ${
+              isConnected
+                ? "bg-green-50 border border-green-200 text-green-800"
+                : "bg-red-50 border border-red-200 text-red-800"
+            }`}
+          >
+            {isConnected ? (
+              <CheckCircle size={16} className="text-green-600" />
+            ) : (
+              <AlertCircle size={16} className="text-red-600" />
+            )}
+            <span className="text-sm">
+              Server Status: {isConnected ? "Connected" : "Disconnected"}
+            </span>
+            {!isConnected && (
+              <button
+                onClick={checkConnection}
+                className="ml-auto text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 flex items-center gap-1"
+              >
+                <RefreshCw size={12} />
+                Retry
+              </button>
+            )}
+          </div>
+        )}
+
+        {showBankManagement ? (
+          renderBankManagement()
+        ) : (
+          <>
+            {/* Header */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+              {/* Your existing header code */}
+            </div>
+
+            {/* Form Modal */}
+            {showForm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+                  <div className="p-6">
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                      {/* Your existing form fields */}
+                      {/* Move currency dropdown next to unit dropdown in items section */}
+                      {formData.items.map((item, index) => (
+                        <div key={index} className="space-y-4">
+                          {/* Other item fields */}
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="w-64">
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                Unit
+                              </label>
+                              <select
+                                value={item.unit}
+                                onChange={(e) =>
+                                  handleItemChange(index, "unit", e.target.value)
+                                }
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              >
+                                {unitOptions.map((unit) => (
+                                  <option key={unit} value={unit}>
+                                    {unit}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="w-64">
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                Currency
+                              </label>
+                              <select
+                                value={formData.currency}
+                                onChange={(e) =>
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    currency: e.target.value,
+                                  }))
+                                }
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              >
+                                {currencyOptions.map((currency) => (
+                                  <option key={currency} value={currency}>
+                                    {currency}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {/* Rest of your form fields */}
+                    </form>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Bank Form Modal */}
+            {showBankForm && renderBankForm()}
+
+            {/* Bills List */}
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              {/* Your existing bills list code */}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default BillManagementApp;
